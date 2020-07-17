@@ -1,0 +1,136 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(MASS)
+library(nnet)
+```
+
+Binarized data with preprocessing done
+```{r}
+dataBinary <- read.table("dataBinary.csv", sep=",", header=T)
+```
+
+Preprocessed data
+```{r}
+data <- read.table("dataprocessed.csv", sep=",", header=T)
+```
+
+```{r}
+N <- nrow(data)
+learn <- sample(1:N, round(2*N/3))  # random indices for the learning set
+nlearn <- length(learn)
+ntest <- N - nlearn
+validation = c(1:N)[-learn]
+```
+
+
+```{r}
+accuracy <- function (model, dataset, learn)
+{
+  N = nrow(dataset)
+  nlearn <- length(learn)
+  ntest <- N - nlearn
+  options(digits=4)
+  # --- #
+  p1 <- as.factor(predict (model, type="class"))
+  t1 <- table(p1, dataset$class[learn])
+  cat ("Train = ", 100-100*(1-sum(diag(t1))/nlearn),"%\n")
+  p2 <- as.factor(predict (model, newdata=dataset[-learn,], type="class"))
+  t2 <- table(p2,dataset$class[-learn])
+  cat ("Test =  ", 100-100*(1-sum(diag(t2))/ntest),"%\n")
+}
+```
+
+
+MLP full model NN 
+(2 hidden neurons and no regularization)
+```{r}
+model.nnet <- nnet(class ~., data = data, subset=learn, size=2, maxit=200, decay=0)
+```
+```{r}
+accuracy(model.nnet, data, learn)
+```
+
+
+
+MLP spc3 model NN 
+(2 hidden neurons and no regularization)
+```{r}
+model.spc3 <- nnet(data$class ~., data = data[,spc3], subset=learn, size=2, maxit=200, decay=0)
+```
+
+```{r}
+accuracy(model.spc3, data, learn)
+```
+
+__Different numbers of hidden units in one hidden layer, with no regularization__
+```{r}
+sizes <- seq(1,30,by=2)
+```
+
+Perform cross-validation and train final model with best parameters:
+```{r}
+N = nrow(data)
+nlearn <- length(learn)
+ntest <- N - nlearn
+options(digits=4)
+```
+
+```{r}
+for(s in sizes){
+  model <- nnet(data$class ~., data = data[,spc3], subset=learn, size=s, maxit=200, decay=0, trace=F, MaxNWts=10000)
+  p2 <- as.factor(predict (model, newdata=data[-learn,], type="class"))
+  t2 <- table(p2,data$class[-learn])
+  acc = 100-100*(1-sum(diag(t2))/ntest)
+  cat ("Size = ", s, " TestAccuracy = ", acc, "%\n")
+}
+```
+
+__20 hidden units in one hidden layer, and different regularization values__
+```{r}
+decays <- seq(0, 2, by=0.1)
+```
+
+Now optimize regularization parameter `decay` with size set to fixed 20 units (be patient.. this takes a while..):
+```{r}
+for(d in decays){
+  model <- nnet(data$class ~., data = data[,spc3], subset=learn, size=20, maxit=200, decay=d, trace=F)
+  p2 <- as.factor(predict (model, newdata=data[-learn,], type="class"))
+  t2 <- table(p2,data$class[-learn])
+  acc = 100-100*(1-sum(diag(t2))/ntest)
+  cat ("Decay = ", d, " TestAccuracy = ", acc, "%\n")
+}
+```
+
+
+
+__10-fold cross validation__
+model.spc3
+size = 5
+decay = 1
+```{r results='hide', message=FALSE, warning=FALSE}
+dataset = data
+numFolds = 10
+acc <- c()
+folds <- cut(seq(1,nrow(data)),breaks=numFolds,labels=FALSE)
+for(i in 1:numFolds){
+    #Segement your data by fold using the which() function
+    testIndexes <- which(folds==i,arr.ind=TRUE)
+    test <- dataset[testIndexes, ]
+    train <- dataset[-testIndexes, ]
+    mod <- nnet(train$class ~., data = train[,spc3], size=5, maxit=200, decay=0, trace=F)
+
+    p2 <- as.factor(predict (mod, newdata=train, type="class"))
+    t2 <- table(p2,train$class)
+    prob = prop.table(t2)
+    acc[i] = prob[1,1]+prob[2,2]
+}
+(average.accuracy = sum(acc) / numFolds)
+```

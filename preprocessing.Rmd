@@ -1,0 +1,101 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(caret)
+library(ggplot2)
+library(reshape2)
+library(MASS)
+```
+
+Upload dataset and convert variables to factors
+```{r}
+data <- read.table("mushrooms.csv", sep=",", header=T)
+data[] <- lapply(data, factor)
+head(data)
+```
+
+Check how many classe has each variable 
+```{r}
+z<-cbind.data.frame(Classes=sapply(data,function(x){as.numeric(length(levels(x)))}))
+z
+```
+
+Eliminate veil.type because it only has one variable 
+```{r}
+data <- data[-17]
+```
+
+Frequency of each class (to know if they are balanced)
+```{r}
+summary(data$class)
+```
+
+Check how many missing values are.
+All are found in stalk.root variable, classified as "?"
+```{r}
+nrow(data[data$stalk.root=='?',])
+```
+
+Probability density plots
+```{r}
+m.data = data[,2:22]
+m.class = data[,1]
+m.data <- sapply( m.data, function (x) as.numeric(as.factor(x)))
+
+scales <- list(x=list(relation="free"),y=list(relation="free"))
+pdf('density.pdf')
+featurePlot(x=m.data, y=m.class, plot="density",scales=scales, auto.key = list(columns = 2), pch = "")
+dev.off()
+featurePlot(x=m.data, y=m.class, plot="density",scales=scales, auto.key = list(columns = 2), pch = "")
+```
+
+Barplots of some variables
+```{r}
+par(mfrow=c(3,2))
+
+tab <- table(data$class, data$odor)
+barplot(tab, beside = T,xlab = "Odor", ylab = "Obs.", col = c("pink", "blue"))
+
+tab <- table(data$class, data$spore.print.color)
+barplot(tab, beside = T,xlab = "Spore print color", ylab = "Obs.", col = c("pink","blue"))
+
+tab <- table(data$class, data$gill.size)
+  barplot(tab, beside = T,xlab = "Gill size", ylab = "Obs.", col = c("pink","blue"))
+  
+tab <- table(data$class, data$habitat)
+  barplot(tab, beside = T,xlab = "Habitat", ylab = "Obs.", col = c("pink","blue"))
+  
+tab <- table(data$class, data$population)
+  barplot(tab, beside = T,xlab = "Population", ylab = "Obs.", col = c("pink","blue"))
+
+plot.new()
+legend("topright", legend = c("Edible", "Poissonous"), fill = c("pink", "blue"))
+
+```
+
+
+ONE-HOT ENCODING
+```{r}
+dmy <- dummyVars(" ~ .", data = data)
+dataBinary <- data.frame(predict(dmy, newdata = data))
+names(dataBinary)[names(dataBinary) == "class.e"] <- "class"
+dataBinary$class.p <- NULL
+head(dataBinary)
+```
+
+```{r}
+write.csv(dataBinary,"dataBinary.csv", row.names = FALSE)
+```
+
+```{r}
+write.csv(data,"dataprocessed.csv", row.names = FALSE)
+```
+  

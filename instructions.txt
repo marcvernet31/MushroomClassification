@@ -1,0 +1,7 @@
+In order to obtain the results we have obtained the first thing is compilate and execute the c++ code with the makefile sistem. It is necessary to call "make all" in your terminal. The file Makefile will do the rest (compile and execute the c++ code and the output will be dist-matrix.csv).
+
+Then, all the other files are .Rmd so with the RStudio IDE it is possible to execute all the parts in order to obtain the results.
+
+Some of them like the MDS may be slow but at the end you should obtain the same plot as ours. It is important to run preprocessing.Rmd before NN.Rmd or models.Rmd as they use the data processed and saved as One-Hot Encoding.
+
+Hope you enjoy :)

@@ -1,0 +1,214 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(caret)
+library(reshape2)
+library(e1071)
+library(MASS)
+```
+
+Read binarized data with preprocessing done
+```{r}
+dataBinary <- read.table("dataBinary.csv", sep=",", header=T)
+```
+
+```{r}
+data <- read.table("dataprocessed.csv", sep=",", header=T)
+```
+
+Dividing between train, validation and test
+with a proportion of (1/3) each one
+```{r}
+df = split(data, sample(1:3, nrow(data), replace=T))
+dataTrain = as.data.frame(df[1])
+names(dataTrain) = names(data)
+dataValidate = as.data.frame(df[2])
+names(dataValidate) = names(data)
+dataTest = as.data.frame(df[3])
+names(dataTest) = names(data)
+```
+
+```{r}
+nrow(dataTest)
+nrow(dataTrain)
+nrow(dataValidate)
+```
+
+Dades interessants:
+stalk = c(11:16)
+colors = c(4,10,15,16,17, 20)
+diff = c(9,6,10,22,20,21,19) //pdf diferents
+spc3 = c(6,8,9,12,15,19) //max. imporatncia full model Num
+
+Discriminant function and error calculation
+```{r}
+#Retorna un vector binari de predicts a partir d'un model i dades a predir
+discriminant <- function(model, pred.data){
+  p = predict(model, pred.data, type="response")
+  for(i in 1:length(p)) {
+    if (p[i] >= 0.5){
+      p[i] = 1;
+    }
+    else{
+      p[i] = 0;
+    }
+  }
+  return(p);
+}
+
+accuracy <- function(predict, newdata){
+  (t = table(predict, newdata))
+  print(t)
+  prob = prop.table(t)
+  return(prob[1,1]+prob[2,2])
+}
+
+model.accuracy <- function(model, dataset){
+  answer = dataset$class
+  d = discriminant(model, dataset)
+  return(accuracy(d, answer))
+}
+```
+
+
+Stalk logit model (factorial data)
+```{r}
+stalk = c(11:16)
+mod.stalk <- glm(dataTrain$class~. , data=dataTrain[,stalk], family=binomial(link="logit"))
+model.accuracy(mod.stalk, dataValidate)
+```
+
+Color logit model (factorial data)
+```{r}
+colors = c(4,10,15,16,17,20)
+mod.colors <- glm(dataTrain$class~. , data=dataTrain[,colors], family=binomial(link="logit"))
+model.accuracy(mod.colors, dataValidate)
+```
+
+Full logit model (factorial data)
+```{r}
+nPart = (1/2) * nrow(data) 
+index = sample(nrow(data), nPart)
+trainFull = data[index,]
+testFull = data[-index,]
+  
+mod.full <- glm(trainFull$class~. , data=trainFull, family=binomial(link="logit"))
+model.accuracy(mod.full, testFull)
+```
+
+```{r}
+varImp(mod.full, scale=T)
+```
+
+
+logit model with variables with most different probability distribution (factorial data)
+odor, gill.spacing, gill.size, gill.color, stalk.shape, bruises, cap.surface, cap.color.
+```{r}
+diff = c(9,6,10,22,20,21,19)
+mod.diff <- glm(dataTrain$class~. , data=dataTrain[,diff], family=binomial(link="logit"))
+model.accuracy(mod.diff, dataValidate)
+```
+
+logit model with the 7 most important variables in the full model (factorial data)
+odor, gill.spacing, gill.size, gill.color, stalk.shape, bruises, cap.color
+```{r}
+spc7 = c(6,8,9,10,11,5,4)
+mod.spc7 <- glm(dataTrain$class~. , data=dataTrain[,spc7], family=binomial(link="logit"))
+model.accuracy(mod.spc7, dataValidate)
+```
+
+logit model with the 3 most important variables in the full model (factorial data)
+odor, gill.spacing, gill.size
+```{r}
+spc3 = c(6,8,9)
+mod.spc3 <- glm(dataTrain$class~. , data=dataTrain[,spc3], family=binomial(link="logit"))
+model.accuracy(mod.spc3, dataValidate)
+```
+
+Naive Bayes
+```{r}
+NB = naiveBayes(dataTrain$class ~., data=dataTrain)
+p = predict(NB, dataValidate)
+p = as.numeric(p)-1
+length(p)
+length(dataValidate$class)
+accuracy(p, dataValidate$class)
+```
+
+
+__10-fold validation using validation and train datasets__
+
+spc3 model
+```{r results='hide', message=FALSE, warning=FALSE}
+dataset = rbind(dataTrain, dataValidate)
+numFolds = 10
+acc <- c()
+folds <- cut(seq(1,nrow(dataset)),breaks=numFolds,labels=FALSE)
+for(i in 1:numFolds){
+    #Segement your data by fold using the which() function
+    testIndexes <- which(folds==i,arr.ind=TRUE)
+    test <- dataset[testIndexes, ]
+    train <- dataset[-testIndexes, ]
+    mod = glm(train$class~. , data=train[,spc3], family=binomial(link="logit"))
+    acc[i] = model.accuracy(mod, test)
+}
+(average.accuracy = sum(acc) / numFolds)
+```
+
+spc7 model
+```{r results='hide', message=FALSE, warning=FALSE}
+dataset = rbind(dataTrain, dataValidate)
+numFolds = 10
+acc <- c()
+folds <- cut(seq(1,nrow(dataset)),breaks=numFolds,labels=FALSE)
+for(i in 1:numFolds){
+    #Segement your data by fold using the which() function
+    testIndexes <- which(folds==i,arr.ind=TRUE)
+    test <- dataset[testIndexes, ]
+    train <- dataset[-testIndexes, ]
+    mod = glm(train$class~. , data=train[,spc7], family=binomial(link="logit"))
+    acc[i] = model.accuracy(mod, test)
+}
+(average.accuracy = sum(acc) / numFolds)
+```
+
+diff model
+```{r results='hide', message=FALSE, warning=FALSE}
+dataset = rbind(dataTrain, dataValidate)
+numFolds = 10
+acc <- c()
+folds <- cut(seq(1,nrow(dataset)),breaks=numFolds,labels=FALSE)
+for(i in 1:numFolds){
+    #Segement your data by fold using the which() function
+    testIndexes <- which(folds==i,arr.ind=TRUE)
+    test <- dataset[testIndexes, ]
+    train <- dataset[-testIndexes, ]
+    mod = glm(train$class~. , data=train[,diff], family=binomial(link="logit"))
+    acc[i] = model.accuracy(mod, test)
+}
+(average.accuracy = sum(acc) / numFolds)
+```
+
+__Final Test Accuracy__
+
+spc3 model
+```{r}
+spc3 = c(6,8,9)
+mod.spc3 <- glm(dataTrain$class~. , data=dataTrain[,spc3], family=binomial(link="logit"))
+model.accuracy(mod.spc3, dataTest)
+```
+
+diff model
+```{r}
+diff = c(9,6,10,22,20,21,19)
+mod.diff <- glm(dataTrain$class~. , data=dataTrain[,diff], family=binomial(link="logit"))
+model.accuracy(mod.diff, dataValidate)
+```
+

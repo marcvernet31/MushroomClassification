@@ -1,0 +1,45 @@
+---
+title: "MDS"
+author: "Marc i Jordi"
+date: "5/16/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Load data
+Load the distance matrix obtained with c++ program.
+
+```{r}
+setwd(".")
+distances = read.csv("dist-matrix.csv", header = FALSE, sep=",")
+head(distances)
+```
+
+#### MDS
+
+```{r}
+mush.mds = cmdscale(distances)
+```
+
+##### Plot
+Carreguem les dades per poder pintar els punts.
+```{r}
+data <- read.table("mushrooms.csv", sep=",", header=F)
+col.idx = c()
+for (i in c(1:8124)) {
+  if (data$V1[i] == "e") {
+    col.idx[i] = 1
+  }
+  else {
+    col.idx[i] = 2
+  }
+}
+color = c("green", "red")
+```
+
+```{r}
+plot(mush.mds, col = color[col.idx], main ="Multidimensional Scaling", xlab = "Dimension 1", ylab = "Dimension 2")
+```
